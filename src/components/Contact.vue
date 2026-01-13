@@ -21,10 +21,10 @@
 
             <!-- Contact Form Column -->
             <div class="col-lg-6">
-                <form class="contact-form shadow-lg">
+                <form @submit.prevent="submitForm" class="contact-form shadow-lg">
                     <div class="mb-3">
                         <label for="contactName" class="form-label visually-hidden">Full Name</label>
-                        <input 
+                        <input v-model="name"
                             type="text" 
                             class="form-control" 
                             placeholder="First Name M.I. Last Name" 
@@ -33,7 +33,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="contactEmail" class="form-label visually-hidden">Email Address</label>
-                        <input 
+                        <input v-model="email"
                             type="email" 
                             class="form-control" 
                             placeholder="Email" 
@@ -42,7 +42,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="contactMessage" class="form-label visually-hidden">Message</label>
-                        <textarea 
+                        <textarea v-model="message"
                             class="form-control" 
                             placeholder="Message" 
                             id="contactMessage" 
@@ -66,7 +66,7 @@
                         </div>
                         
                         <!-- Submit Button -->
-                        <button type="submit" class="btn btn-success contact-submit-btn">Submit</button>
+                        <button type="submit" class="submit-btn pl-5 pr-5" :disabled="isLoading">{{isLoading ? "Sending ...": "Submit"}}</button>
                     </div>
                 </form>
             </div>
@@ -75,3 +75,51 @@
     </div>
 </section>
 </template>
+
+<script setup>
+import { ref } from "vue";
+import { Notyf } from "notyf";
+import 'notyf/notyf.min.css';
+
+const WEB3FORMS_ACCESS_KEY = "f2a27b89-2bf1-49b7-8ab3-c79fa654cb59";
+const name = ref("");
+const email = ref("");
+const message = ref("");
+
+// Loading state
+const isLoading =ref(false);
+
+const notyf = new Notyf();
+
+const submitForm = async () => {
+    isLoading.value = true;
+    try {
+  const response = await fetch("https://api.web3forms.com/submit", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      access_key: WEB3FORMS_ACCESS_KEY,
+      name: name.value,
+      email: email.value,
+      message: message.value,
+    }),
+  });
+
+          const result = await response.json();
+          if (result.success) {
+            console.log(result);
+            isLoading.value = false;
+
+            notyf.success("Message Sent!")
+          }
+        }
+        catch(error){
+            console.log(error);
+            isLoading.value = false;
+            notyf.error("Failed to send message.")
+    }
+}
+</script>
