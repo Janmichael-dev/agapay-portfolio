@@ -68,6 +68,9 @@
                         <!-- Submit Button -->
                         <button type="submit" class="submit-btn pl-5 pr-5" :disabled="isLoading">{{isLoading ? "Sending ...": "Submit"}}</button>
                     </div>
+                    <div class= "d-flex justify-content-end mt-2">
+                        <div ref="recaptchaContainer"></div>
+                    </div>
                 </form>
             </div>
 
@@ -77,7 +80,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { Notyf } from "notyf";
 import 'notyf/notyf.min.css';
 
@@ -90,8 +93,70 @@ const message = ref("");
 const isLoading =ref(false);
 
 const notyf = new Notyf();
+//Configuration needed for the recaptcha
+const SITE_KEY = '6LfBY0ksAAAAAEvBtVEI6ZWIkyNrcMWNK4W8kH3b';
+const recaptchaContainer = ref(null);
+const recaptchaWidgetId = ref(null);
+const recaptchaToken = ref('');
+// Callback called by reCAPTCHA when successful
+function onRecaptchaSuccess(token) {
+  recaptchaToken.value = token;
+}
+
+// Callback when expired
+function onRecaptchaExpired() {
+  recaptchaToken.value = '';
+}
+
+// Function to render the reCAPTCHA widget
+function renderRecaptcha() {
+  if (!window.grecaptcha) {
+    console.error('reCAPTCHA not loaded');
+    return;
+  }
+
+  recaptchaWidgetId.value = window.grecaptcha.render(recaptchaContainer.value, {
+    sitekey: SITE_KEY,
+    size: 'normal', // or 'compact'
+    callback: onRecaptchaSuccess,
+    'expired-callback': onRecaptchaExpired,
+  });
+}
+
+// Function to reset reCAPTCHA 
+function resetRecaptcha() {
+  if (recaptchaWidgetId.value !== null) {
+    window.grecaptcha.reset(recaptchaWidgetId.value);
+    recaptchaToken.value = '';
+  }
+}
+
+
+
+onMounted(() => {
+  // This code waits for the Google reCAPTCHA library to load, then renders the reCAPTCHA widget using onMounted hook. 
+  // The widget is rendered with grecaptcha.render(), which requires a sitekey. 
+  // Callback functions handle success and expiration events. 
+  // reCAPTCHA is reset upon form submission to clear the token.
+  const interval = setInterval(() => {
+    if (window.grecaptcha && window.grecaptcha.render) {
+      renderRecaptcha();
+      clearInterval(interval);
+    }
+  }, 100);
+
+  onBeforeUnmount(() => {
+    clearInterval(interval);
+  });
+});
 
 const submitForm = async () => {
+    if(!recaptchaToken.value){
+        notyf.error('Please verify that you are not a robot');
+        return;
+    }
+
+
     isLoading.value = true;
     try {
   const response = await fetch("https://api.web3forms.com/submit", {
